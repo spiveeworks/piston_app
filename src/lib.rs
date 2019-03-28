@@ -2,13 +2,46 @@ extern crate piston_window;
 
 use piston_window::*;
 
-pub trait App {
+// useful when drawing a structure by drawing each of its fields
+pub trait Draw {
     fn on_draw(
         self: &mut Self,
-        centre: Context,
+        centre: math::Matrix2d,
+        time: f64,
         graphics: &mut G2d,
-        args: RenderArgs,
     );
+}
+
+pub trait DrawAdvanced {
+    fn on_draw(
+        self: &mut Self,
+        context: Context,
+        args: RenderArgs,
+        graphics: &mut G2d,
+    );
+}
+
+impl<G> DrawAdvanced for G where G: Draw {
+    fn on_draw(
+        self: &mut Self,
+        context: Context,
+        args: RenderArgs,
+        graphics: &mut G2d,
+    ) {
+        let centre = get_screen_centre(&context, &args);
+        Draw::on_draw(self, centre, args.ext_dt, graphics);
+    }
+}
+
+pub fn get_screen_centre(
+    context: &Context,
+    ren: &RenderArgs,
+) -> math::Matrix2d {
+    let corner = context.transform;
+    Transformed::trans(corner, ren.width / 2.0, ren.height / 2.0)
+}
+
+pub trait App: DrawAdvanced {
     fn on_update(
         self: &mut Self,
         args: UpdateArgs,
@@ -64,7 +97,7 @@ pub fn run_until_escape<A>(mut app: A)
 
     while let Some(e) = window.next() {
         if let Some(ren) = e.render_args() {
-            window.draw_2d(&e, |c, g| app.on_draw(c, g, ren));
+            window.draw_2d(&e, |c, g| app.on_draw(c, ren, g));
         }
         if let Some(upd) = e.update_args() {
             app.on_update(upd);
